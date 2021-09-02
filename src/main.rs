@@ -8,14 +8,18 @@ use std::io;
 use std::print;
 
 #[derive(Serialize, Deserialize, Debug)]
-struct ImageUrl {
+struct MediaUrl {
     secure_url: String,
+    width: i16,
+    height: i16,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 struct Task {
     text: String,
     media_url: String,
+    width: i16,
+    height: i16,
     created_at: String,
 }
 
@@ -69,12 +73,16 @@ fn main() {
         "Media uploaded successfully!".green().bold().to_string()
     );
 
-    let parsed: ImageUrl = serde_json::from_str(&media_uploaded).unwrap();
-    let image_url = parsed.secure_url;
+    let parsed: MediaUrl = serde_json::from_str(&media_uploaded).unwrap();
+    let media_url = parsed.secure_url;
+    let width = parsed.width;
+    let height = parsed.height;
 
     let data = Task {
         text: parsed_input,
-        media_url: image_url,
+        media_url,
+        width,
+        height,
         created_at: date_now.to_string(),
     };
 
