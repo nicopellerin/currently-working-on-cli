@@ -66,14 +66,16 @@ fn main() {
 
     let parsed_media_path: String = media_path.trim().replace("'", "").parse().unwrap();
 
-    let media_uploaded: String = upload_image_cloudinary(parsed_media_path);
+    let parsed = match upload_image_cloudinary(parsed_media_path) {
+        Ok(media_uploaded) => media_uploaded,
+        Err(error) => panic!("Error uploading to Cloudinary: {}", error),
+    };
 
     println!(
         "{}",
         "Media uploaded successfully!".green().bold().to_string()
     );
 
-    let parsed: MediaUrl = serde_json::from_str(&media_uploaded).unwrap();
     let media_url = parsed.secure_url;
     let width = parsed.width;
     let height = parsed.height;
@@ -91,18 +93,21 @@ fn main() {
     println!("{}", "Added to DB successfully!".green().bold().to_string());
 }
 
-fn upload_image_cloudinary(media_path: String) -> String {
+fn upload_image_cloudinary(media_path: String) -> Result<MediaUrl, reqwest::Error> {
     let client = reqwest::blocking::Client::new();
 
     let cloudinary_id = dotenv::var("CLOUDINARY_ID").unwrap();
     let cloudinary_api_key = dotenv::var("CLOUDINARY_API_KEY").unwrap();
     let cloudinary_preset = dotenv::var("CLOUDINARY_PRESET").unwrap();
 
-    let form = multipart::Form::new()
+    let form = match multipart::Form::new()
         .text("api_key", cloudinary_api_key)
         .text("upload_preset", cloudinary_preset)
         .file("file", &media_path)
-        .unwrap();
+    {
+        Ok(form) => form,
+        Err(error) => panic!("Invalid form: {}", error),
+    };
 
     let mut media_type = String::from("image");
 
@@ -110,16 +115,19 @@ fn upload_image_cloudinary(media_path: String) -> String {
         media_type = String::from("video")
     }
 
-    let res = client
+    let res = match client
         .post(format!(
             "https://api.cloudinary.com/v1_1/{}/{}/upload",
             cloudinary_id, media_type
         ))
         .multipart(form)
         .send()
-        .unwrap();
+    {
+        Ok(res) => res,
+        Err(err) => panic!("Error upload_image_cloudinary: {}", err),
+    };
 
-    let text_res = res.text().unwrap();
+    let parsed_res = serde_json::from_str(&res.text().unwrap());
 
-    text_res
+    Ok(parsed_res.unwrap())
 }
